@@ -109,6 +109,67 @@ app.delete("/todos/:id", async (req, res) => {
   });
 });
 
+app.post("/todos/:id", async (req, res) => {
+  const { id } = req.params;
+  const { reg_date } = req.body;
+  const { perform_date } = req.body;
+  const { is_completed } = req.body;
+  const { content } = req.body;
+
+  const [rows] = await pool.query(`SELECT * FROM todo`);
+
+  if (rows.length === 0) {
+    res.status(404).json({
+      msg: "not found",
+    });
+  }
+
+  //"" > false, 실행안됨. !"" > true, 실행됨.
+  if (!reg_date) {
+    //!perform_date가 비어있다면 실행
+    res.status(400).json({
+      msg: "reg_date required",
+    });
+    return;
+  }
+
+  if (!perform_date) {
+    //!perform_date가 비어있다면 실행
+    res.status(400).json({
+      msg: "perform_date required",
+    });
+    return;
+  }
+
+  if (!is_completed) {
+    //!perform_date가 비어있다면 실행
+    res.status(400).json({
+      msg: "is_completed required",
+    });
+    return;
+  }
+
+  if (!content) {
+    //!content가 비어있다면 실행
+    res.status(400).json({
+      msg: "content required",
+    });
+    return;
+  }
+
+  const [rs] = await pool.query(
+    `INSERT todo SET reg_date = ?, perform_date = ?, is_completed = ?, content = ?`,
+    [reg_date, perform_date, is_completed, content]
+  );
+
+  //console.log("id", id);
+  //console.log("perform_date", perform_date);
+  //console.log("content", content);
+  res.json({
+    msg: `${id}번 할 일이 생성되었습니다.`,
+  });
+});
+
 /*async 
 func1() {
 
