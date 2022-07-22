@@ -2,8 +2,11 @@
 //const express = require("express");
 import express from "express"; //와 같은 뜻
 import mysql from "mysql2/promise";
+
 const app = express();
 const port = 3000;
+
+app.use(express.json());
 
 const pool = mysql.createPool({
   host: "localhost",
@@ -19,6 +22,91 @@ app.get("/todos", async (req, res) => {
   const [rows] = await pool.query("SELECT * FROM todo ORDER BY id DESC");
 
   res.json(rows);
+});
+
+app.get("/todos/:id", async (req, res) => {
+  // /todos/:id → id를 변수로 사용할 수 있음
+  const { id } = req.params;
+
+  const [rows] = await pool.query(`SELECT * FROM todo WHERE id = ?`, [id]);
+
+  if (rows.length === 0) {
+    res.status(404).json({ msg: "not found" });
+    return;
+  }
+
+  res.json(rows[0]);
+});
+
+app.patch("/todos/:id", async (req, res) => {
+  const { id } = req.params;
+  const { perform_date, content } = req.body;
+
+  const [rows] = await pool.query(`SELECT * FROM todo WHERE id = ?`, [id]);
+
+  if (rows.length === 0) {
+    res.status(404).json({
+      msg: "not found",
+    });
+  }
+
+  //"" > false, 실행안됨. !"" > true, 실행됨.
+  if (!perform_date) {
+    //!perform_date가 비어있다면 실행
+    res.status(400).json({
+      msg: "perform_date required",
+    });
+    return;
+  }
+
+  if (!content) {
+    //!content가 비어있다면 실행
+    res.status(400).json({
+      msg: "content required",
+    });
+    return;
+  }
+
+  const [rs] = await pool.query(
+    `UPDATE todo SET perform_date = ?, content = ? WHERE id = ?`,
+    [perform_date, content, id]
+  );
+
+  //console.log("id", id);
+  //console.log("perform_date", perform_date);
+  //console.log("content", content);
+  res.json({
+    msg: `${id}번 할 일이 수정되었습니다.`,
+  });
+});
+
+app.delete("/todos/:id", async (req, res) => {
+  const { id } = req.params;
+
+  const [[todoRow]] = await pool.query(
+    `
+  SELECT *
+  FROM todo
+  WHERE id = ?`,
+    [id]
+  );
+
+  if (todoRow === undefined) {
+    res.status(404).json({
+      msg: "not found",
+    });
+    return;
+  }
+
+  const [rs] = await pool.query(
+    `DELETE FROM todo
+  WHERE id = ?`,
+    [id]
+  );
+
+  res.json({
+    msg: `${id}번 할 일이 삭제되었습니다.`,
+  });
 });
 
 /*async 
@@ -62,7 +150,6 @@ sum()
  */
 
 /*
-
 const sum = function(a, b) {
     return a + b
 }
