@@ -2,10 +2,13 @@
 //const express = require("express");
 import express from "express"; //와 같은 뜻
 import mysql from "mysql2/promise";
+import axios from "axios";
+import cors from "cors";
 
 const app = express();
-const port = 3000;
+const port = 4000;
 
+app.use(cors());
 app.use(express.json());
 
 const pool = mysql.createPool({
@@ -40,9 +43,16 @@ app.get("/todos/:id", async (req, res) => {
 
 app.patch("/todos/:id", async (req, res) => {
   const { id } = req.params;
-  const { perform_date, content } = req.body;
+  const { perform_date, text } = req.body;
 
-  const [rows] = await pool.query(`SELECT * FROM todo WHERE id = ?`, [id]);
+  const [rows] = await pool.query(
+    `
+    SELECT *
+    FROM todo
+    WHERE id = ?
+    `,
+    [id]
+  );
 
   if (rows.length === 0) {
     res.status(404).json({
@@ -50,35 +60,71 @@ app.patch("/todos/:id", async (req, res) => {
     });
   }
 
-  //"" > false, 실행안됨. !"" > true, 실행됨.
   if (!perform_date) {
-    //!perform_date가 비어있다면 실행
     res.status(400).json({
       msg: "perform_date required",
     });
     return;
   }
 
-  if (!content) {
-    //!content가 비어있다면 실행
+  if (!text) {
     res.status(400).json({
-      msg: "content required",
+      msg: "text required",
     });
     return;
   }
 
   const [rs] = await pool.query(
-    `UPDATE todo SET perform_date = ?, content = ? WHERE id = ?`,
-    [perform_date, content, id]
+    `
+    UPDATE todo
+    SET perform_date = ?,
+    text = ?
+    WHERE id = ?
+    `,
+    [perform_date, text, id]
   );
 
-  //console.log("id", id);
-  //console.log("perform_date", perform_date);
-  //console.log("content", content);
-  res.json({
-    msg: `${id}번 할 일이 수정되었습니다.`,
-  });
+  const [updatedTodos] = await pool.query(
+    `
+    SELECT *
+    FROM todo
+    ORDER BY id DESC
+    `
+  );
+  res.json(updatedTodos);
 });
+app.patch("/todos/check/:id", async (req, res) => {
+  //id값 받아오기
+  const { id } = req.params;
+  //row 세로 : 컬럼 , row : 내용
+  //할 일의 check 초기상태를 체크해야 함
+  const [[rows]] = await pool.query(
+    `
+    SELECT *
+  FROM todo where id = ?
+  `,
+    //↓↓ ?에는 id가 들어가야 함
+    [id]
+  );
+  //↓↓ 하지만 id에 없는 id값이 들어온다면 에러처리를 해야 함.
+  if (!rows) {
+    res.status(404).json({
+      msg: "not found",
+    });
+    return;
+  }
+  //↓↓ 문제가 없다면 수정을 해줘야 함 → 수정하는 mySQL 구문 작성
+  await pool.query(
+    `
+  UPDATE todo
+  SET checked = ?
+  WHERE id = ?
+  `,
+    //불러온 다음 체크가 됐다면 체크를 풀고, 체크가 안됐다면 체크를 해줘야 함 → !로 변경
+    [!rows.checked, id]
+  );
+  res.send(id);
+}); /**/
 
 app.delete("/todos/:id", async (req, res) => {
   const { id } = req.params;
@@ -109,65 +155,91 @@ app.delete("/todos/:id", async (req, res) => {
   });
 });
 
-app.post("/todos/:id", async (req, res) => {
-  const { id } = req.params;
-  const { reg_date } = req.body;
-  const { perform_date } = req.body;
-  const { is_completed } = req.body;
-  const { content } = req.body;
+// app.post("/todos", async (req, res) => {
+//   //const { id } = req.params;
+//   const { reg_date } = req.body;
+//   const { perform_date } = req.body;
+//   const { is_completed } = req.body;
+//   const { content } = req.body;
 
-  const [rows] = await pool.query(`SELECT * FROM todo`);
+//   const [rows] = await pool.query(`SELECT * FROM todo`);
+//   /*
+//   if (rows.length === 0) {
+//     res.status(404).json({
+//       msg: "not found",
+//     });
+//   }*/
 
-  if (rows.length === 0) {
-    res.status(404).json({
-      msg: "not found",
-    });
-  }
+//   //"" > false, 실행안됨. !"" > true, 실행됨.
+//   /*if (!reg_date) {
+//     //!perform_date가 비어있다면 실행
+//     res.status(400).json({
+//       msg: "reg_date required",
+//     });
+//     return;
+//   }*/
 
-  //"" > false, 실행안됨. !"" > true, 실행됨.
-  if (!reg_date) {
-    //!perform_date가 비어있다면 실행
-    res.status(400).json({
-      msg: "reg_date required",
-    });
-    return;
-  }
+//   if (!perform_date) {
+//     //!perform_date가 비어있다면 실행
+//     res.status(400).json({
+//       msg: "perform_date required",
+//     });
+//     return;
+//   }
 
-  if (!perform_date) {
-    //!perform_date가 비어있다면 실행
-    res.status(400).json({
-      msg: "perform_date required",
-    });
-    return;
-  }
+//   if (!is_completed) {
+//     //!perform_date가 비어있다면 실행
+//     res.status(400).json({
+//       msg: "is_completed required",
+//     });
+//     return;
+//   }
 
-  if (!is_completed) {
-    //!perform_date가 비어있다면 실행
-    res.status(400).json({
-      msg: "is_completed required",
-    });
-    return;
-  }
+//   if (!content) {
+//     //!content가 비어있다면 실행
+//     res.status(400).json({
+//       msg: "content required",
+//     });
+//     return;
+//   }
 
-  if (!content) {
-    //!content가 비어있다면 실행
-    res.status(400).json({
-      msg: "content required",
-    });
-    return;
-  }
+//   const [rs] = await pool.query(
+//     `INSERT todo SET
+//     reg_date = NOW(),
+//     perform_date = ?,
+//     is_completed = ?,
+//     content = ?`,
+//     [perform_date, checked, text]
+//   );
 
-  const [rs] = await pool.query(
-    `INSERT todo SET reg_date = ?, perform_date = ?, is_completed = ?, content = ?`,
-    [reg_date, perform_date, is_completed, content]
+//   //console.log("id", id);
+//   //console.log("perform_date", perform_date);
+//   //console.log("content", content);
+//   res.json({
+//     msg: `할 일이 생성되었습니다.`,
+//   });
+// });
+
+app.post("/todos", async (req, res) => {
+  const {
+    body: { text },
+  } = req;
+  await pool.query(
+    `
+  INSERT INTO todo
+  SET reg_date = NOW(),
+  perform_date = '2022-05-18 07:00:00',
+  checked = 0,
+  text = ?;
+  `,
+    [text]
   );
 
-  //console.log("id", id);
-  //console.log("perform_date", perform_date);
-  //console.log("content", content);
-  res.json({
-    msg: `${id}번 할 일이 생성되었습니다.`,
-  });
+  const [newRows] = await pool.query(`
+  SELECT * FROM
+  todo
+  ORDER BY id DESC`);
+  res.json(newRows);
 });
 
 /*async 
