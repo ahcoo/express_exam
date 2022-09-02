@@ -123,7 +123,14 @@ app.patch("/todos/check/:id", async (req, res) => {
     //불러온 다음 체크가 됐다면 체크를 풀고, 체크가 안됐다면 체크를 해줘야 함 → !로 변경
     [!rows.checked, id]
   );
-  res.send(id);
+  const [updatedTodos] = await pool.query(
+    `
+    SELECT *
+    FROM todo
+    ORDER BY id DESC
+    `
+  );
+  res.send(updatedTodos);
 }); /**/
 
 app.delete("/todos/:id", async (req, res) => {
